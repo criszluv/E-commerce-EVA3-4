@@ -1,0 +1,31 @@
+@import "tailwindcss";
+
+:root {
+  /* Tema claro: morado muy suave de fondo, texto oscuro legible */
+  --background: #f5f3ff;      /* similar a bg-purple-50 */
+  --foreground: #111827;      /* gris muy oscuro (tailwind slate-900) */
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* Tema oscuro: morado profundo con texto claro */
+    --background: #0b0615;    /* morado casi negro */
+    --foreground: #f9fafb;    /* casi blanco */
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  /* Usamos la fuente que definiste en el layout en vez de Arial pelado */
+  font-family: var(--font-geist-sans), system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", sans-serif;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
