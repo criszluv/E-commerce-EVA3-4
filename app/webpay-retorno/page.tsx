@@ -1,12 +1,12 @@
 'use client'
 import { useEffect, useState, useRef } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
-import { createClient } from '@supabase/supabase-js'
+// ✅ ESTO ES LO CORRECTO
+// Ajusta la ruta (../) según donde esté tu archivo
+import { supabase } from '@/lib/supabase' 
+// O si no usas alias (@): import { supabase } from '../../../lib/supabase'
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
+
 
 export default function WebpayRetorno() {
   const searchParams = useSearchParams()

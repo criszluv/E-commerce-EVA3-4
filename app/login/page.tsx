@@ -1,13 +1,13 @@
 'use client'
 import { useState } from 'react'
-import { createClient } from '@supabase/supabase-js'
+// ✅ ESTO ES LO CORRECTO
+// Ajusta la ruta (../) según donde esté tu archivo
+import { supabase } from '@/lib/supabase' 
+// O si no usas alias (@): import { supabase } from '../../../lib/supabase'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
+
 
 export default function AuthPage() {
   const [view, setView] = useState<'login' | 'register'>('login')

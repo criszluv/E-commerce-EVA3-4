@@ -1,11 +1,9 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { createClient } from '@supabase/supabase-js'
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
+// ✅ ESTO ES LO CORRECTO
+// Ajusta la ruta (../) según donde esté tu archivo
+import { supabase } from '@/lib/supabase' 
+// O si no usas alias (@): import { supabase } from '../../../lib/supabase'
 
 export default function CatalogoAdmin() {
   const [publicaciones, setPublicaciones] = useState<any[]>([])

@@ -1,11 +1,8 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { createClient } from '@supabase/supabase-js'
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
+// CAMBIO IMPORTANTE: Importamos el cliente desde tu archivo centralizado
+// Si te marca error en rojo, asegúrate de que creaste la carpeta "lib" y el archivo "supabase.ts"
+import { supabase } from '@/lib/supabase' 
 
 export default function PropuestasPage() {
   const [propuestas, setPropuestas] = useState<any[]>([])

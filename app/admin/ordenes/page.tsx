@@ -1,11 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { createClient } from '@supabase/supabase-js'
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
+// CAMBIO: Usamos el cliente centralizado para evitar errores de build
+import { supabase } from '@/lib/supabase' 
 
 export default function OrdenesPage() {
   const [ordenes, setOrdenes] = useState<any[]>([])
@@ -31,9 +27,7 @@ export default function OrdenesPage() {
     const razon = prompt("⚠️ ¿Confirmar reembolso? Escribe la razón (ej: Cliente insatisfecho):")
     if (!razon) return
 
-    // 2. Lógica de reembolso (Aquí idealmente llamarías a tu API de Stripe/MercadoPago)
-    // Por ahora, simulamos actualizando la base de datos.
-    
+    // 2. Lógica de reembolso
     const { error } = await supabase
         .from('projects')
         .update({ 
