@@ -32,7 +32,7 @@ export default function AdminDashboard() {
       const { count: ordersCount } = await supabase
         .from('proposals')
         .select('*', { count: 'exact', head: true })
-        .neq('status', 'pending')
+        .eq('status', 'pending')
 
       setStats({
         usuarios: usersCount || 0,
