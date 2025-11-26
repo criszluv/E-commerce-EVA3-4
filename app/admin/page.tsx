@@ -30,7 +30,7 @@ export default function AdminDashboard() {
 
       // 3. Contar Ventas/Ordenes (proyectos que NO están 'open')
       const { count: ordersCount } = await supabase
-        .from('projects')
+        .from('proposals')
         .select('*', { count: 'exact', head: true })
         .neq('status', 'pending')
 
