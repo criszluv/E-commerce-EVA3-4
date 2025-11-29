@@ -5,11 +5,9 @@ import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
 import { Search, ShoppingBag, LogIn, LogOut, User, DollarSign, Send, Zap } from 'lucide-react'
 
-
 export default function Navbar() {
     const [user, setUser] = useState<any>(null)
     const [rol, setRol] = useState<string | null>(null)
-    // 💡 NUEVO ESTADO: Contador del carrito
     const [itemsEnCarrito, setItemsEnCarrito] = useState(0)
     const router = useRouter()
     const pathname = usePathname()
@@ -38,12 +36,12 @@ export default function Navbar() {
                 setUser(user)
                 setRol(profileData?.role || 'client')
                 
-                // 2. 💡 NUEVA LÓGICA: Contar ítems en el carrito (propuestas 'pending')
+                // 2. LOGICA CLIENTE REGISTRADO: Contar ítems en DB
                 if (profileData?.role === 'client') {
-                     const { count, error } = await supabase
+                      const { count, error } = await supabase
                         .from('proposals')
-                        .select('id', { count: 'exact', head: true }) // Contar filas
-                        .eq('freelancer_id', user.id) // El cliente es el freelancer_id que hace la propuesta de compra
+                        .select('id', { count: 'exact', head: true }) 
+                        .eq('freelancer_id', user.id) 
                         .eq('status', 'pending');
 
                     if (error) {
@@ -56,12 +54,18 @@ export default function Navbar() {
                 }
 
             } else {
+                // 3. 💡 LÓGICA INVITADO: Contar ítems en LocalStorage
                 setUser(null)
                 setRol(null)
-                setItemsEnCarrito(0);
+                // Leemos el carrito del navegador
+                const guestCart = JSON.parse(localStorage.getItem('guest_cart') || '[]');
+                setItemsEnCarrito(guestCart.length);
             }
         }
         getUser()
+        
+        // Escuchar evento personalizado si quisieras actualizar sin recargar (opcional), 
+        // por ahora el pathname suele funcionar si navegan.
     }, [pathname])
 
     const handleLogout = async () => {
@@ -93,7 +97,7 @@ export default function Navbar() {
                 {/* MENÚ */}
                 <div className="flex items-center space-x-3 md:space-x-4 text-sm">
                     
-                    {/* 1. GUEST (No Registrado) - Sin cambios */}
+                    {/* 1. GUEST (No Registrado) */}
                     {!user && (
                         <>
                             <Link 
@@ -102,6 +106,21 @@ export default function Navbar() {
                             >
                                 <Search className="h-4 w-4" /> Explorar Servicios
                             </Link>
+                            
+                            {/* 💡 CARRITO DE INVITADO */}
+                            {itemsEnCarrito > 0 && (
+                                <Link 
+                                    href="/checkout" 
+                                    className="bg-gray-800 text-purple-400 border border-purple-500/30 px-3 py-2 rounded-lg hover:bg-gray-700 transition font-medium text-xs md:text-sm shadow-sm flex items-center gap-2 relative animate-fade-in"
+                                >
+                                    <ShoppingBag className="h-4 w-4" /> 
+                                    <span className="hidden md:inline">Carrito</span>
+                                    <span className="absolute -top-2 -right-2 bg-purple-500 text-white rounded-full h-5 w-5 flex items-center justify-center text-[10px] font-extrabold shadow-lg border border-gray-900">
+                                        {itemsEnCarrito > 99 ? '+99' : itemsEnCarrito}
+                                    </span>
+                                </Link>
+                            )}
+
                             <Link 
                                 href="/login" 
                                 className="bg-purple-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-purple-700 transition shadow-md shadow-purple-900/50 flex items-center gap-2"
@@ -111,7 +130,7 @@ export default function Navbar() {
                         </>
                     )}
 
-                    {/* 2. FREELANCER (Vendedor) - Sin cambios */}
+                    {/* 2. FREELANCER (Vendedor) */}
                     {user && rol === 'freelancer' && (
                         <>
                             <Link 
@@ -138,7 +157,7 @@ export default function Navbar() {
                             >
                                 <Search className="h-4 w-4" /> Explorar Tienda
                             </Link>
-                            {/* 💡 ACTUALIZADO: Botón Mi Carrito con Contador */}
+                            
                             <Link 
                                 href="/dashboard" 
                                 className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition font-medium text-xs md:text-sm shadow-md shadow-purple-900/50 flex items-center gap-2 relative"

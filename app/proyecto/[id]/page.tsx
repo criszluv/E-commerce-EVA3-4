@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase' 
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Tag, Users, Folder, Image as ImageIcon, ShoppingCart, DollarSign, Zap, ArrowLeft, ChevronLeft, ChevronRight, Edit, EyeOff } from 'lucide-react' 
+import { Tag, Users, Folder, Image as ImageIcon, ShoppingCart, DollarSign, Zap, ArrowLeft, ChevronLeft, ChevronRight, Edit, EyeOff, UserCircle } from 'lucide-react' 
 
 // Función para formatear el precio como moneda (sin cambios)
 const formatCurrency = (amount: number | string | undefined | null) => {
@@ -101,10 +101,11 @@ export default function DetalleServicio() {
     const [user, setUser] = useState<any>(null)
     const [rol, setRol] = useState<string | null>(null)
     const [loading, setLoading] = useState(false)
-    const [estadoCompra, setEstadoCompra] = useState<'ninguno' | 'en_carrito' | 'comprado'>('ninguno')
+    
+    // ✅ ACTUALIZADO: Agregamos estado 'en_carrito_guest'
+    const [estadoCompra, setEstadoCompra] = useState<'ninguno' | 'en_carrito' | 'comprado' | 'en_carrito_guest'>('ninguno')
 
     const ESTADO_ACTIVO = 'open';
-    // ✅ VALOR CORREGIDO: Usamos 'banned' según tu base de datos
     const ESTADO_BAJA = 'banned'; 
 
     useEffect(() => {
@@ -112,8 +113,11 @@ export default function DetalleServicio() {
             setLoading(true);
             const { data } = await supabase.from('projects').select(`*, profiles(full_name)`).eq('id', params.id).single()
             setServicio(data)
+            
             const { data: { user } } = await supabase.auth.getUser()
             setUser(user)
+
+            // Lógica para USUARIOS REGISTRADOS
             if (user && data) {
                 const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
                 setRol(profile?.role || 'client')
@@ -127,12 +131,21 @@ export default function DetalleServicio() {
                     if (estaPagado) setEstadoCompra('comprado')
                     else if (estaEnCarrito) setEstadoCompra('en_carrito')
                 }
+            } 
+            // ✅ Lógica para INVITADOS (LocalStorage)
+            else if (!user && data) {
+                const guestCart = JSON.parse(localStorage.getItem('guest_cart') || '[]');
+                if (guestCart.includes(data.id)) {
+                    setEstadoCompra('en_carrito_guest');
+                }
             }
+
             setLoading(false);
         }
         if(params.id) cargar()
     }, [params])
 
+    // Handler Compra Usuario Registrado
     const handleComprar = async () => { 
         if (!user) return router.push('/login')
         if (estadoCompra !== 'ninguno') { router.push('/dashboard'); return }
@@ -145,19 +158,43 @@ export default function DetalleServicio() {
         setLoading(false);
     }
 
+    // ✅ Handler Compra Invitado (LocalStorage)
+    const handleComprarInvitado = () => {
+        const guestCart = JSON.parse(localStorage.getItem('guest_cart') || '[]');
+        
+        if (!guestCart.includes(servicio.id)) {
+            guestCart.push(servicio.id);
+            localStorage.setItem('guest_cart', JSON.stringify(guestCart));
+            setEstadoCompra('en_carrito_guest');
+            alert('🛍️ Agregado a tu carrito de invitado');
+        } else {
+            router.push('/checkout');
+        }
+    }
+
+    // ✅ Handler Eliminar (Unificado)
     const handleEliminarDelCarrito = async () => { 
         if(!confirm("¿Quitar del carrito?")) return;
-        setLoading(true);
-        const { error } = await supabase.from('proposals')
-            .delete().eq('project_id', servicio.id).eq('freelancer_id', user.id).eq('status', 'pending')
-        if (error) alert("Error: " + error.message)
-        else { setEstadoCompra('ninguno'); alert("🗑️ Eliminado del carrito") }
-        setLoading(false);
+        
+        if (user) {
+            // Eliminar de Base de Datos (Usuario registrado)
+            setLoading(true);
+            const { error } = await supabase.from('proposals')
+                .delete().eq('project_id', servicio.id).eq('freelancer_id', user.id).eq('status', 'pending')
+            if (error) alert("Error: " + error.message)
+            else { setEstadoCompra('ninguno'); alert("🗑️ Eliminado del carrito") }
+            setLoading(false);
+        } else {
+            // Eliminar de LocalStorage (Invitado)
+            const guestCart = JSON.parse(localStorage.getItem('guest_cart') || '[]');
+            const nuevoCart = guestCart.filter((id: string) => id !== servicio.id);
+            localStorage.setItem('guest_cart', JSON.stringify(nuevoCart));
+            setEstadoCompra('ninguno');
+            alert("🗑️ Eliminado del carrito local");
+        }
     }
     
-    // ✅ HANDLER CORREGIDO: Alterna entre 'open' y 'banned'
     const handleDeshabilitar = async () => {
-        // Si está ACTIVO, el nuevo estado es BAJA. Si está BAJA, el nuevo estado es ACTIVO.
         const nuevoStatus = servicio.status === ESTADO_ACTIVO ? ESTADO_BAJA : ESTADO_ACTIVO;
         const confirmMsg = nuevoStatus === ESTADO_BAJA
             ? "¿Seguro que deseas dar de baja este servicio? No será visible públicamente."
@@ -186,7 +223,6 @@ export default function DetalleServicio() {
 
     const esMio = user && user.id === servicio.client_id;
     const esVendedor = rol === 'freelancer';
-    // Usamos ESTADO_ACTIVO y ESTADO_BAJA para la visualización
     const estaActivo = servicio.status === ESTADO_ACTIVO;
 
     return (
@@ -213,7 +249,7 @@ export default function DetalleServicio() {
                         </p>
                     </header>
 
-                    {/* ESTRUCTURA PRINCIPAL: IMAGEN/CARRUSEL + INFO + ACCIÓN */}
+                    {/* ESTRUCTURA PRINCIPAL */}
                     <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
                         
                         {/* COLUMNA IZQUIERDA: IMAGEN/CARRUSEL (6/12) */}
@@ -222,7 +258,6 @@ export default function DetalleServicio() {
                                 <MediaContent servicio={servicio} esMio={esMio} />
                             </div>
 
-                            {/* VENDEDOR */}
                             <div className="p-4 bg-gray-900 rounded-lg border border-purple-800/50 flex items-center gap-3">
                                 <Users className="h-7 w-7 text-purple-400" />
                                 <div>
@@ -231,7 +266,6 @@ export default function DetalleServicio() {
                                 </div>
                             </div>
                             
-                            {/* ETIQUETAS CLAVE */}
                             {servicio.required_skills && servicio.required_skills.length > 0 && (
                                 <div>
                                     <h3 className="font-bold text-sm text-purple-500 uppercase mb-3 tracking-wider flex items-center">
@@ -298,48 +332,98 @@ export default function DetalleServicio() {
                                             </button>
                                         </div>
                                     ) : (
-                                        /* CASO 2: COMPRADOR (Cliente) */
+                                        /* CASO 2: COMPRADOR O INVITADO */
                                         <>
-                                            {estadoCompra === 'ninguno' && (
-                                                <button 
-                                                    onClick={handleComprar}
-                                                    disabled={loading || !estaActivo}
-                                                    className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white py-4 rounded-lg font-bold text-lg hover:shadow-lg hover:shadow-purple-900/50 transition-all duration-300 disabled:opacity-50 flex items-center justify-center gap-2"
-                                                >
-                                                    {loading ? 'Procesando...' : <><ShoppingCart className='h-5 w-5' /> Añadir al Carrito</>}
-                                                </button>
+                                            {/* -- Lógica para USUARIO REGISTRADO -- */}
+                                            {user && (
+                                                <>
+                                                    {estadoCompra === 'ninguno' && (
+                                                        <button 
+                                                            onClick={handleComprar}
+                                                            disabled={loading || !estaActivo}
+                                                            className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white py-4 rounded-lg font-bold text-lg hover:shadow-lg hover:shadow-purple-900/50 transition-all duration-300 disabled:opacity-50 flex items-center justify-center gap-2"
+                                                        >
+                                                            {loading ? 'Procesando...' : <><ShoppingCart className='h-5 w-5' /> Añadir al Carrito</>}
+                                                        </button>
+                                                    )}
+                                                    {estadoCompra === 'en_carrito' && (
+                                                        <div className="flex flex-col gap-2">
+                                                            <button 
+                                                                onClick={() => router.push('/dashboard')}
+                                                                className="w-full bg-yellow-400 text-yellow-900 py-4 rounded-lg font-bold text-lg hover:bg-yellow-500 hover:shadow-lg transition-all shadow-yellow-800/50 flex items-center justify-center gap-2"
+                                                            >
+                                                                ⚠️ Ver Carrito <span className="text-xs font-medium opacity-80">(Pagar ahora)</span>
+                                                            </button>
+                                                            <button 
+                                                                onClick={handleEliminarDelCarrito}
+                                                                disabled={loading}
+                                                                className="text-sm text-red-400 hover:text-red-600 font-medium text-center py-2 transition-colors"
+                                                            >
+                                                                Quitar del carrito
+                                                            </button>
+                                                        </div>
+                                                    )}
+                                                    {estadoCompra === 'comprado' && (
+                                                        <div className="w-full bg-green-900/50 text-green-400 py-4 rounded-lg font-bold text-center border border-green-700/50">
+                                                            ✅ Servicio Comprado
+                                                            <Link href="/dashboard" className="block text-sm text-green-500 underline mt-1 hover:text-green-300">
+                                                                Ver en mis pedidos
+                                                            </Link>
+                                                        </div>
+                                                    )}
+                                                </>
                                             )}
-                                            {estadoCompra === 'en_carrito' && (
-                                                <div className="flex flex-col gap-2">
-                                                    <button 
-                                                        onClick={() => router.push('/dashboard')}
-                                                        className="w-full bg-yellow-400 text-yellow-900 py-4 rounded-lg font-bold text-lg hover:bg-yellow-500 hover:shadow-lg transition-all shadow-yellow-800/50 flex items-center justify-center gap-2"
-                                                    >
-                                                        ⚠️ Ver Carrito
-                                                        <span className="text-xs font-medium opacity-80">(Pagar ahora)</span>
-                                                    </button>
-                                                    <button 
-                                                        onClick={handleEliminarDelCarrito}
-                                                        disabled={loading}
-                                                        className="text-sm text-red-400 hover:text-red-600 font-medium text-center py-2 transition-colors"
-                                                    >
-                                                        Quitar del carrito
-                                                    </button>
-                                                </div>
-                                            )}
-                                            {estadoCompra === 'comprado' && (
-                                                <div className="w-full bg-green-900/50 text-green-400 py-4 rounded-lg font-bold text-center border border-green-700/50">
-                                                    ✅ Servicio Comprado
-                                                    <Link href="/dashboard" className="block text-sm text-green-500 underline mt-1 hover:text-green-300">
-                                                        Ver en mis pedidos
-                                                    </Link>
-                                                </div>
+
+                                            {/* -- Lógica para INVITADO (NO REGISTRADO) -- */}
+                                            {!user && (
+                                                <>
+                                                    {estadoCompra === 'ninguno' && (
+                                                        <div className="space-y-3">
+                                                            <button 
+                                                                onClick={() => router.push('/login')} // ✅ CORREGIDO: ahora redirige a /login
+                                                                className="w-full bg-gray-700 hover:bg-gray-600 text-white py-3 rounded-lg font-bold transition flex items-center justify-center gap-2"
+                                                            >
+                                                                <UserCircle className='h-5 w-5' /> Iniciar Sesión para Comprar
+                                                            </button>
+                                                            
+                                                            <div className="relative flex py-1 items-center">
+                                                                <div className="flex-grow border-t border-gray-700"></div>
+                                                                <span className="flex-shrink-0 mx-4 text-gray-500 text-xs uppercase">O compra rápida</span>
+                                                                <div className="flex-grow border-t border-gray-700"></div>
+                                                            </div>
+
+                                                            <button 
+                                                                onClick={handleComprarInvitado}
+                                                                disabled={!estaActivo}
+                                                                className="w-full border-2 border-purple-500 text-purple-400 hover:bg-purple-500/10 py-3 rounded-lg font-bold transition flex items-center justify-center gap-2"
+                                                            >
+                                                                🛍️ Añadir como Invitado
+                                                            </button>
+                                                        </div>
+                                                    )}
+
+                                                    {estadoCompra === 'en_carrito_guest' && (
+                                                        <div className="flex flex-col gap-2 animate-fade-in">
+                                                            <button 
+                                                                onClick={() => router.push('/checkout')}
+                                                                className="w-full bg-gradient-to-r from-emerald-500 to-green-600 text-white py-4 rounded-lg font-bold text-lg hover:shadow-lg hover:shadow-green-900/50 transition-all flex items-center justify-center gap-2"
+                                                            >
+                                                                ✨ Finalizar Compra (Invitado)
+                                                            </button>
+                                                            <p className="text-xs text-center text-gray-500">
+                                                                Tienes items guardados localmente.
+                                                            </p>
+                                                            <button onClick={handleEliminarDelCarrito} className="text-sm text-red-400 hover:text-red-600 font-medium text-center py-2 transition-colors">
+                                                                Quitar del carrito local
+                                                            </button>
+                                                        </div>
+                                                    )}
+                                                </>
                                             )}
                                         </>
                                     )}
                                 </div>
                                 
-                                {/* GARANTÍA */}
                                 <div className="mt-8 flex justify-center items-center gap-2 text-gray-500 text-xs">
                                     <DollarSign className="w-4 h-4" />
                                     <span>Transacción y pago asegurados.</span>
